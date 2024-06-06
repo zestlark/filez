@@ -575,7 +575,7 @@ body {
 
 #system {
   width: calc(100%);
-  height: calc(100vh - 50px);
+  height: calc(100dvh - 50px);
   overflow: scroll;
   overflow-y: scroll;
 }
@@ -828,7 +828,7 @@ body {
 
 @media screen and (max-width: 650px) {
   #system {
-    height: calc(100vh - 120px);
+    height: calc(100dvh - 120px);
     width: 100%;
     margin-bottom: 20px;
   }
