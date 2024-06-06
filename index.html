@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" href="/favicon.ico">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet" />
+  <title>FILEZ | ZESTLARK</title>
+</head>
+
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.js"></script>
+  <script src="https://zestlark.github.io/z-notify/index.js"></script>
+  <script>
+    const notifyConfig = {
+      x: 'end',
+      y: 'top',
+      borderRadius: '5px',
+      color: 'black',
+      background: 'black',
+      styles: {
+        danger: {
+          background: '#ff0000',
+          color: 'white'
+        },
+        success: {
+          background: '#322e44',
+          color: 'white'
+        }
+      },
+      options: {
+        timeout: 50000,
+        sound: 'https://zestlark.github.io/z-notify/audio/beep.mp3'
+      }
+    };
+
+    const notification = new Notification(notifyConfig);
+  </script>
+</body>
+
+</html>
