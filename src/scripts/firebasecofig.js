@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, get, set } from 'firebase/database';
-import { getStorage, ref as refStr, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref as refStr, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const firebaseConfig = {
     apiKey: "AIzaSyC4L9SAnN_JYlifBsK3HCq-YWOHJ9KiFkM",
@@ -53,7 +53,7 @@ async function fetchFileContent(url) {
         // if (!response.ok) {
         //     throw new Error(`Error fetching file content: ${response.statusText}`);
         // }
-        
+
         // const fileContent = await response.text();
         // console.log(fileContent);
         return 'write something...';
@@ -63,6 +63,16 @@ async function fetchFileContent(url) {
 }
 
 
+async function deleteFileByUrl(fileUrl) {
+    try {
+        const fileRef = refStr(storage, fileUrl);
+        await deleteObject(fileRef);
+        console.log(`File at ${fileUrl} deleted successfully from Firebase Storage.`);
+    } catch (error) {
+        console.error('Error deleting file:', error);
+    }
+}
 
 
-export { database, storage, getdatabasedata, insertdatabasedata, fetchFileContent, firebaseApp };
+
+export { database, storage, getdatabasedata, insertdatabasedata, fetchFileContent, firebaseApp, deleteFileByUrl };

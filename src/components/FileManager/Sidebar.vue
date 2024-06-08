@@ -94,21 +94,25 @@ onMounted(() => {
     })
 })
 
+const reloadPage = () => {
+    window.location.reload();
+};
+
 const adminlogin = () => {
     let password = prompt("enter your passkey")
     if (password == 'zestlark') {
         emit('updaterole', 'admin');
         sessionStorage.setItem('admin', 'true')
-        notification.success('Login successful', 'Filesz', '/favicon.ico')
+        notification.success('Login successful', 'Filez', '/favicon.ico')
     } else {
-        notification.danger('Login Failed', 'Filesz', '/favicon.ico')
+        notification.danger('Login Failed', 'Filez', '/favicon.ico')
     }
 }
 
 const adminlogout = () => {
     sessionStorage.removeItem('admin')
     emit('updaterole', 'user');
-    notification.success('Logout successful', 'Filesz', '/favicon.ico')
+    notification.success('Logout successful', 'Filez', '/favicon.ico')
 }
 
 </script>

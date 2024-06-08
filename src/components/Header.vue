@@ -10,8 +10,8 @@
         <!-- actions -->
         <div id="actions">
             <div @click="openfolderform" id="createFolder" class="action" :style="{
-                opacity: (firstfolder != undefined && secondfolder == undefined || role == 'admin') ? '100%' : '50%',
-                pointerEvents: (firstfolder != undefined && secondfolder == undefined || role == 'admin') ? 'auto' : 'none'
+                opacity: (firstfolder != undefined && secondfolder == undefined || role == 'admin' && secondfolder == undefined) ? '100%' : '50%',
+                pointerEvents: (firstfolder != undefined && secondfolder == undefined || role == 'admin' && secondfolder == undefined) ? 'auto' : 'none'
             }">
                 <img src="../assets/apps/default/fileManager/assets/folder.png" alt="" srcset="" />
             </div>
@@ -22,7 +22,7 @@
             }">
                 <img src="../assets/apps/default/fileManager/assets/file.png" alt="" srcset="" />
             </div>
-            <div id="renameFile" class="action" v-if="role == 'admin'">
+            <div id="renameFile" class="action" v-if="role == 'admin'" @click="multiRename">
                 <img src="../assets/apps/default/fileManager/assets/rename.png" alt="" srcset="" />
             </div>
             <div id="select" class="action" v-show="false">
@@ -36,7 +36,7 @@
                 <input style="display: none;" multiple type="file" ref="fileButton" v-on:change="handleFileSelection"
                     id="uploadinput">
             </div>
-            <div id="deleteFile" class="action" v-if="role == 'admin'">
+            <div id="deleteFile" class="action" v-if="role == 'admin'" @click="multiDelete">
                 <img src="../assets/apps/default/fileManager/assets/delete.png" alt="" srcset="" />
             </div>
         </div>
@@ -219,11 +219,6 @@ const addfiletodatabase = async (data) => {
     }
 }
 
-
-const reloadPage = () => {
-    window.location.reload();
-};
-
 watch(route, (to, from) => {
     path.value = to.params.data;
     firstfolder.value = to.params.firstfolder;
@@ -233,6 +228,45 @@ watch(route, (to, from) => {
 
 const openfolderform = () => {
     document.getElementById('addfolderform').style.display = 'flex'
+}
+
+// actions
+const multiRename = () => {
+    const multilist = []
+    const fileList = document.querySelector('#file-list')
+    const list = fileList.querySelectorAll('li')
+    list.forEach(li => {
+        let inputCheck = li.querySelector('input')
+        if (inputCheck.checked) {
+            multilist.push(li)
+        }
+    })
+    multilist.forEach(li => {
+        li.querySelector('.fileaction').querySelector('.rename-btn').click();
+    })
+    console.log(multilist);
+}
+
+const multiDelete = () => {
+    const multilist = []
+    const fileList = document.querySelector('#file-list')
+    const list = fileList.querySelectorAll('li')
+    list.forEach(li => {
+        let inputCheck = li.querySelector('input')
+        if (inputCheck.checked) {
+            multilist.push(li)
+        }
+    })
+
+    if (confirm("Are you sure you want to delete this files")) {
+        sessionStorage.setItem('multidelete', 'true')
+        multilist.forEach(li => {
+            li.querySelector('input').checked = false
+            li.querySelector('.fileaction').querySelector('.delete-btn').click();
+        })
+        console.log(multilist);
+        sessionStorage.removeItem('multidelete')
+    }
 }
 
 
