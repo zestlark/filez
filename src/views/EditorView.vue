@@ -2,10 +2,16 @@
     <div class="editorBox">
         <div class="header">
             <input v-model="filename" type="text" placeholder="Untitled file *">
-            <button @click="savefile">Save</button>
+            <div class="actions">
+                <button class="cancel-btn" @click="cancelfile">Cancel</button>
+                <button class="save-btn" @click="savefile" :disabled="!canSave" :style="{ opacity: canSave ? 1 : 0.5, cursor: canSave ? 'pointer' : 'not-allowed' }">Save</button>
+            </div>
         </div>
-        <codemirror v-model="code" placeholder="Start writing..." :style="{ height: '100vh', fontSize: '14px' }"
-            :autofocus="true" :indent-with-tab="true" :tab-size="2" :extensions="extensions" @ready="handleReady" />
+        <div class="editor-container">
+            <codemirror v-model="code" placeholder="Start writing..." :style="{ height: '100%', fontSize: '14px' }"
+                :autofocus="true" :indent-with-tab="true" :tab-size="2" :extensions="extensions" @ready="handleReady" />
+        </div>
+
 
         <div class="loader" v-if="loader">
             <img src="https://i0.wp.com/css-tricks.com/wp-content/uploads/2021/08/s_2A9C470D38F43091CCD122E63014ED4503CAA7508FAF0C6806AE473C2B94B83E_1627522653545_loadinfo.gif?resize=200%2C200&ssl=1"
@@ -14,7 +20,7 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, shallowRef, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Codemirror } from 'vue-codemirror'
@@ -22,8 +28,10 @@ import { javascript } from '@codemirror/lang-javascript'
 import { html } from '@codemirror/lang-html'
 import { EditorView } from '@codemirror/view'
 import { oneDark } from '@codemirror/theme-one-dark'
-import { fetchFileContent, firebaseApp, insertdatabasedata, getdatabasedata } from '../scripts/firebasecofig'
-import { ref as refFb, getStorage, uploadBytesResumable, getDownloadURL } from "firebase/storage"
+import { fetchFileContent, insertdatabasedata, getdatabasedata, supabase } from '../scripts/storage'
+import type { FileNode } from '../types';
+import { getUserHashSync } from '../scripts/auth';
+import { computed } from 'vue';
 
 const router = useRouter()
 const route = useRoute()
@@ -33,6 +41,15 @@ const pathParam = route.query.path || null
 const loader = ref(false)
 
 const filename = ref('')
+const currentFile = ref<FileNode | null>(null)
+const userHash = getUserHashSync()
+const isAdmin = computed(() => sessionStorage.getItem('admin') === 'true')
+
+const canSave = computed(() => {
+    if (isAdmin.value) return true;
+    if (!currentFile.value) return true; // New file
+    return currentFile.value.ownerHash === userHash;
+})
 
 // editor
 const code = ref(``)
@@ -51,7 +68,7 @@ const savefile = () => {
         uploadImageAsPromise(file);
     } else {
         let promptfilename = prompt("Enter file name ");
-        filename.value = promptfilename;
+        filename.value = promptfilename || '';
         if (filename.value.length > 0) {
             if (!filename.value.includes('.')) {
                 alert('Please add an extension to the file name');
@@ -64,65 +81,79 @@ const savefile = () => {
         }
     }
 }
-
-const uploadImageAsPromise = (imageFile) => {
+const cancelfile = () => {
+    if (code.value.length > 0) {
+        if (confirm("You have unsaved changes. Are you sure you want to discard them and close the editor?")) {
+            router.back();
+        }
+    } else {
+        router.back();
+    }
+}
+const uploadImageAsPromise = async (imageFile: File) => {
     try {
-        const storage = getStorage(firebaseApp)
-        const storageRef = refFb(storage, '/filez' + atob(pathParam) + '/' + imageFile.name);
+        const bucketName = 'filez';
+        const pathSuffix = pathParam ? atob(pathParam as string) : '';
+        const filePath = (pathSuffix.startsWith('/') ? pathSuffix.substring(1) : pathSuffix) + '/' + imageFile.name;
+        const cleanPath = filePath.replace(/\/+/g, '/');
 
-        const uploadTask = uploadBytesResumable(storageRef, imageFile);
+        const { data, error } = await supabase.storage
+            .from(bucketName)
+            .upload(cleanPath, imageFile, {
+                cacheControl: '3600',
+                upsert: true
+            });
 
-        uploadTask.on('state_changed',
-            (snapshot) => {
-                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                console.log('Upload Progress:', progress);
-            },
-            (error) => {
-                console.error(error);
-            },
-            () => {
-                getDownloadURL(storageRef)
-                    .then((url) => {
-                        const newfile = { name: imageFile.name, path: url, type: 'file' }
-                        addfiletodatabase(newfile);
+        if (error) {
+            console.error('Error uploading to Supabase:', error);
+            loader.value = false;
+            return;
+        }
 
-                    })
-                    .catch((error) => {
-                        console.error('Error getting download URL:', error);
-                    });
-            }
-        );
+        const { data: { publicUrl } } = supabase.storage
+            .from(bucketName)
+            .getPublicUrl(cleanPath);
+
+        const newfile: FileNode = { 
+            name: imageFile.name, 
+            path: publicUrl, 
+            type: 'file',
+            ownerHash: currentFile.value?.ownerHash || userHash
+        }
+        await addfiletodatabase(newfile);
     } catch (error) {
         console.error("Error uploading file:", error);
+        loader.value = false;
     }
 }
 
-const addfiletodatabase = async (data) => {
+const addfiletodatabase = async (data: FileNode) => {
     try {
         let file = await getdatabasedata('/filez/global')
-        let pathParts = atob(pathParam).split('/').splice(2).map(part => part.split('%20').join(' '));
+        const pathSuffix = pathParam ? atob(pathParam as string) : '';
+        let pathParts = pathSuffix.split('/').splice(2).map(part => decodeURIComponent(part.replace(/%20/g, ' ')));
 
-        if (pathParts.length === 1) {
-            const folder = file.find(item => item.name === pathParts[0] && item.type === 'folder');
+        let currentLevel = file as FileNode[];
+        let targetFolder: FileNode | null = null;
 
-            if (folder) {
-                if (!folder.files) {
-                    folder.files = [];
-                }
-                folder.files.push(data);
-            }
-        } else if (pathParts.length === 2) {
-            const folder = file.find(item => item.name === pathParts[0] && item.type === 'folder');
-
-            if (folder && folder.files) {
-                const subFolder = folder.files.find(item => item.name === pathParts[1] && item.type === 'folder');
-
-                if (subFolder) {
-                    if (!subFolder.files) {
-                        subFolder.files = [];
+        if (pathParts.length === 0) {
+            currentLevel.push(data);
+        } else {
+            for (const folderName of pathParts) {
+                targetFolder = currentLevel.find((folder: FileNode) => folder.name === folderName && folder.type === 'folder') || null;
+                if (targetFolder) {
+                    if (!targetFolder.files) {
+                        targetFolder.files = [];
                     }
-                    subFolder.files.push(data);
+                    currentLevel = targetFolder.files;
+                } else {
+                    console.error('Folder not found when adding file to db:', folderName);
+                    loader.value = false;
+                    return;
                 }
+            }
+            if (targetFolder && targetFolder.files) {
+                targetFolder.files.push(data);
             }
         }
 
@@ -136,7 +167,8 @@ const addfiletodatabase = async (data) => {
     }
 }
 
-const handleReady = (payload) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const handleReady = (payload: { view: any }) => { // Codemirror internal typing constraint
     view.value = payload.view
 }
 
@@ -147,26 +179,29 @@ const extensions = [
     oneDark
 ]
 
-// const getCodemirrorStates = () => {
-//     const state = view.value.state
-//     const ranges = state.selection.ranges
-//     const selected = ranges.reduce((r, range) => r + range.to - range.from, 0)
-//     const cursor = ranges[0].anchor
-//     const length = state.doc.length
-//     const lines = state.doc.lines
-//     // more state info ...
-//     // return ...
-// }
-
-
 onMounted(async () => {
     if (urlParam) {
-        code.value = await fetchFileContent(urlParam)
+        loader.value = true
+        const filestructure = await getdatabasedata('/filez/global')
+        // Find the file in the structure to check ownership
+        const findFile = (nodes: FileNode[], path: string): FileNode | null => {
+            for (const node of nodes) {
+                if (node.path === path) return node;
+                if (node.files) {
+                    const found = findFile(node.files, path);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+        currentFile.value = findFile(filestructure as FileNode[], urlParam as string);
+        filename.value = currentFile.value?.name || '';
+        code.value = await fetchFileContent(urlParam as string) || ''
+        loader.value = false
     }
     if (!pathParam) {
         router.back()
     }
-
 })
 
 </script>
@@ -174,6 +209,14 @@ onMounted(async () => {
 .editorBox {
     background: grey;
     height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.editor-container {
+    flex: 1;
+    overflow: hidden;
 }
 
 .header {
@@ -182,6 +225,12 @@ onMounted(async () => {
     justify-content: space-between;
     align-items: center;
     background: #1c2435;
+    flex-shrink: 0;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
 }
 
 .header input {
@@ -195,11 +244,29 @@ onMounted(async () => {
     font-size: 13px;
 }
 
-.header button {
+.header button.save-btn {
     padding: 5px 20px;
     background: lightgreen;
     cursor: pointer;
     border-radius: 2px;
+    border: none;
+    font-weight: bold;
+}
+
+.header button.cancel-btn {
+    padding: 5px 20px;
+    background: transparent;
+    color: #ff6b6b;
+    border: 1px solid #ff6b6b;
+    cursor: pointer;
+    border-radius: 2px;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+
+.header button.cancel-btn:hover {
+    background: #ff6b6b;
+    color: white;
 }
 
 .loader {

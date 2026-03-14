@@ -1,16 +1,20 @@
-<script setup>
+<script setup lang="ts">
 import Sidebar from '../components/FileManager/Sidebar.vue';
 import Filemanager from '../components/FileManager.vue'
 import FolderInput from '../components/FolderInput.vue';
 import { onMounted, ref } from 'vue';
-import { getdatabasedata } from '../scripts/firebasecofig.js'
+import { getdatabasedata } from '../scripts/storage'
+import type { FileNode } from '../types';
+
+const isLoading = ref(true);
 
 const handleFolderCreated = async () => {
   filestructure.value = await getdatabasedata('/filez/global')
 }
 
 const role = ref('user')
-const updateRole = (value) => {
+const updateRole = (value: string) => {
+  console.log('Role updating to:', value);
   role.value = value
 }
 
@@ -18,10 +22,12 @@ if (sessionStorage.getItem('admin') == 'true') {
   role.value = 'admin';
 }
 
-const filestructure = ref([])
+const filestructure = ref<FileNode[]>([])
 
 onMounted(async () => {
-  filestructure.value = await getdatabasedata('/filez/global')
+  isLoading.value = true;
+  filestructure.value = await getdatabasedata('/filez/global');
+  isLoading.value = false;
 })
 </script>
 
@@ -29,7 +35,7 @@ onMounted(async () => {
   <div id="root">
     <div class="home">
       <Sidebar :role="role" @updaterole="updateRole" />
-      <Filemanager :role="role" :filestructure="filestructure" />
+      <Filemanager :role="role" :filestructure="filestructure" :is-loading="isLoading" @dataChanged="handleFolderCreated" />
       <FolderInput @folderCreated="handleFolderCreated" />
     </div>
   </div>

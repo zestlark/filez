@@ -10,19 +10,9 @@ const router = createRouter({
       redirect: '/global'
     },
     {
-      path: '/:data',
-      name: 'data',
+      path: '/:data/:pathMatch(.*)*',
+      name: 'fileExplorer',
       component: HomeView
-    },
-    {
-      path: '/:data/:firstfolder',
-      name: 'firstfolder',
-      component: HomeView,
-      children: [{
-        path: ':secondfolder',
-        name: 'secondfolder',
-        component: HomeView
-      }]
     },
     {
       path: '/editor',

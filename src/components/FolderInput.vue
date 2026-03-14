@@ -11,20 +11,21 @@
     </div>
 </template>
 
-<script setup>
-import { ref, onMounted, defineEmits } from 'vue';
-import { getdatabasedata, insertdatabasedata } from '../scripts/firebasecofig.js'
+<script setup lang="ts">
+import { getdatabasedata, insertdatabasedata } from '../scripts/storage'
 import { useRouter, useRoute } from 'vue-router'
+import { ref, onMounted } from 'vue';
+import type { FileNode } from '../types';
+import { getUserHashSync } from '../scripts/auth';
 
 const emit = defineEmits(['folderCreated'])
 
 const router = useRouter()
 const route = useRoute()
-const firstfolder = ref(route.params.firstfolder)
-
-const filelist = ref([])
+const filelist = ref<FileNode[]>([])
 
 const inputfoldername = ref('')
+const userHash = getUserHashSync()
 
 onMounted(async () => {
     // Fetch data only when needed
@@ -39,7 +40,8 @@ const errormsg = ref('')
 
 const closefolderform = () => {
     inputfoldername.value = ''
-    document.getElementById('addfolderform').style.display = 'none'
+    const form = document.getElementById('addfolderform')
+    if (form) form.style.display = 'none'
 }
 
 const checkfolderexist = async () => {
@@ -47,40 +49,63 @@ const checkfolderexist = async () => {
         errormsg.value = '* Please Enter Folder Name'
         return
     }
-    for (const myitem of filelist.value) {
-        if (myitem.name == firstfolder.value) {
-            let folderexist = false;
-            if (myitem.files) {
-                for (const myfiles of myitem.files) {
-                    if (myfiles.name == inputfoldername.value) {
-                        errormsg.value = '* Folder Already Exist'
-                        folderexist = true
-                        break;
-                    }
-                }
-            } else {
-                myitem.files = []
-            }
-            console.log('file list', filelist.value);
 
-            if (!folderexist) {
-                errormsg.value = ''
-                myitem.files.push({ name: inputfoldername.value, path: firstfolder, type: 'folder' })
-                await insertdatabasedata('/filez/global', filelist.value)
-                emit('folderCreated');
-                closefolderform()
-                break;
+    let pathParts = router.currentRoute.value.fullPath.split('/').splice(2).filter(x => x !== "").map((part: string) => decodeURIComponent(part.replace(/%20/g, ' ')));
+    
+    // Enforcement of 3-level nesting limit
+    if (pathParts.length >= 3) {
+        errormsg.value = '* Maximum folder depth reached (max 3 levels)'
+        return;
+    }
+
+    // We are at the root level (/global or /private)
+    if (pathParts.length === 0) {
+        // Allow folder creation at root for admins OR in the global drive
+        if (sessionStorage.getItem('admin') == 'true' || route.params.data === 'global') {
+            const folderExists = filelist.value.some(f => f.name === inputfoldername.value && f.type === 'folder');
+            if (folderExists) {
+                errormsg.value = '* Folder Already Exist'
+                return;
             }
+            errormsg.value = ''
+            filelist.value.push({ name: inputfoldername.value, path: 'global', type: 'folder', ownerHash: userHash, files: [] })
+            await insertdatabasedata('/filez/global', filelist.value)
+            emit('folderCreated');
+            closefolderform()
+        }
+        return;
+    }
+
+    // Traverse the structure to locate the currently open folder
+    let currentLevel = filelist.value;
+    let targetFolder: FileNode | null = null;
+
+    for (const folderName of pathParts) {
+        if (!currentLevel) break;
+        targetFolder = currentLevel.find((folder: FileNode) => folder.name === folderName && folder.type === 'folder') || null;
+        if (targetFolder) {
+            if (!targetFolder.files) {
+                 targetFolder.files = [];
+            }
+            currentLevel = targetFolder.files;
         } else {
-            if (firstfolder.value == undefined)
-                if (sessionStorage.getItem('admin') == 'true') {
-                    console.log(filelist.value);
-                    filelist.value.push({ name: inputfoldername.value, path: 'global', type: 'folder' })
-                    await insertdatabasedata('/filez/global', filelist.value)
-                    emit('folderCreated');
-                    closefolderform()
-                    break;
-                }
+            console.error('Target folder not found in structure:', folderName);
+            break;
+        }
+    }
+
+    if (targetFolder) {
+        // Check if the folder already exists in the target folder's files array
+        const folderexist = targetFolder.files?.some((file: FileNode) => file.name === inputfoldername.value && file.type === 'folder');
+        
+        if (folderexist) {
+             errormsg.value = '* Folder Already Exist'
+        } else if (targetFolder.files) {
+             errormsg.value = ''
+             targetFolder.files.push({ name: inputfoldername.value, path: 'global', type: 'folder', ownerHash: userHash, files: [] })
+             await insertdatabasedata('/filez/global', filelist.value)
+             emit('folderCreated');
+             closefolderform()
         }
     }
 }
