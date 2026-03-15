@@ -22,25 +22,28 @@
         </div>
 
         <!-- Custom Admin Login Modal -->
-        <Transition name="fade">
-            <div v-if="showAdminModal" class="admin-modal-overlay" @click.self="showAdminModal = false">
-                <div class="admin-modal">
-                    <h3>Admin Auth</h3>
-                    <p>Enter passkey to access admin features</p>
-                    <input 
-                        v-model="adminPasskey" 
-                        type="password" 
-                        placeholder="Passkey" 
-                        @keyup.enter="handleAdminLogin"
-                        autofocus
-                    >
-                    <div class="modal-btns">
-                        <button class="cancel" @click="showAdminModal = false">Cancel</button>
-                        <button class="confirm" @click="handleAdminLogin">Login</button>
-                    </div>
-                </div>
+        <ModernModal 
+            :show="showAdminModal" 
+            :hasButtons="true"
+            confirmText="Login"
+            @close="showAdminModal = false"
+            @confirm="handleAdminLogin"
+        >
+            <div class="admin-auth-form">
+                <h3 style="margin: 0; color: white;">Admin Auth</h3>
+                <p style="margin: 0 0 10px 0; color: rgba(255, 255, 255, 0.6); font-size: 0.9rem;">
+                    Enter passkey to access admin features
+                </p>
+                <input 
+                    v-model="adminPasskey" 
+                    type="password" 
+                    placeholder="Passkey" 
+                    @keyup.enter="handleAdminLogin"
+                    class="modern-input"
+                    autofocus
+                >
             </div>
-        </Transition>
+        </ModernModal>
 
         <div id="drives" class="sub-sidebar">
             <ul>
@@ -48,13 +51,34 @@
 
                 <li clickable root-path="/global" :class="{ active: path === 'global' }"
                     @click="() => { router.push('/global') }">
-                    <img src="../../assets/apps/default/fileManager/assets/cloud.png" alt="" />
+                    <img :src="CloudIcon" alt="" />
                     <p>Global</p>
                 </li>
                 <li clickable root-path="/private" :class="{ active: path === 'private' }"
                     @click="() => { router.push('/private') }">
-                    <img src="../../assets/apps/default/fileManager/assets/private-cloud.png" alt="" srcset="" />
+                    <img :src="PrivateCloudIcon" alt="" srcset="" />
                     <p>My Files</p>
+                </li>
+            </ul>
+        </div>
+
+        <div id="filters" class="sub-sidebar">
+            <ul>
+                <li class="drivername" style="padding: 0;opacity: 60%;color: white;"><small>Filters</small></li>
+                <li clickable :class="{ active: route.name === 'fileFilter' && route.params.type === 'images' }"
+                    @click="() => { router.push('/filter/images') }">
+                    <img :src="ImageIcon" alt="" />
+                    <p>Images</p>
+                </li>
+                <li clickable :class="{ active: route.name === 'fileFilter' && route.params.type === 'videos' }"
+                    @click="() => { router.push('/filter/videos') }">
+                    <img :src="VideoIcon" alt="" />
+                    <p>Videos</p>
+                </li>
+                <li clickable :class="{ active: route.name === 'fileFilter' && route.params.type === 'documents' }"
+                    @click="() => { router.push('/filter/documents') }">
+                    <img :src="DocumentIcon" alt="" />
+                    <p>Documents</p>
                 </li>
             </ul>
         </div>
@@ -101,6 +125,7 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router';
 import { ref, watch, onMounted, computed } from 'vue';
+import ModernModal from '../ModernModal.vue';
 
 const props = defineProps(['role'])
 const emit = defineEmits(['updaterole'])
@@ -108,6 +133,12 @@ const emit = defineEmits(['updaterole'])
 const route = useRoute();
 const router = useRouter();
 const path = computed(() => route.params.data);
+
+import CloudIcon from '../../assets/apps/default/fileManager/assets/cloud.png';
+import PrivateCloudIcon from '../../assets/apps/default/fileManager/assets/private-cloud.png';
+import ImageIcon from '../../assets/apps/default/fileManager/assets/image.png';
+import VideoIcon from '../../assets/apps/default/fileManager/assets/video.png';
+import DocumentIcon from '../../assets/apps/default/fileManager/assets/system-file.png';
 
 onMounted(() => {
     const closeSidebarBtn = document.getElementById('close-sidebar');
@@ -199,97 +230,27 @@ const adminlogout = () => {
 
 }
 
-/* Admin Modal Styles */
-.admin-modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(8px);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-}
-
-.admin-modal {
-    background: #1a1a1a;
-    padding: 30px;
-    border-radius: 16px;
-    width: 90%;
-    max-width: 400px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+.admin-auth-form {
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
-.admin-modal h3 {
-    margin: 0 0 10px 0;
-    color: white;
-    font-size: 1.5rem;
-}
-
-.admin-modal p {
-    color: rgba(255, 255, 255, 0.6);
-    margin-bottom: 25px;
-    font-size: 0.9rem;
-}
-
-.admin-modal input {
-    width: 100%;
+.modern-input {
     padding: 12px 16px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
+    border-radius: 4px;
     color: white;
     font-size: 1rem;
-    margin-bottom: 25px;
     outline: none;
     transition: all 0.3s;
-}
+    width: 100%;
 
-.admin-modal input:focus {
-    border-color: #3b82f6;
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.modal-btns {
-    display: flex;
-    gap: 12px;
-}
-
-.modal-btns button {
-    flex: 1;
-    padding: 12px;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.3s;
-}
-
-.modal-btns .cancel {
-    background: rgba(255, 255, 255, 0.05);
-    color: white;
-}
-
-.modal-btns .confirm {
-    background: #3b82f6;
-    color: white;
-}
-
-.modal-btns button:hover {
-    transform: translateY(-2px);
-    filter: brightness(1.1);
-}
-
-.fade-enter-active, .fade-leave-active {
-    transition: opacity 0.3s ease;
-}
-
-.fade-enter-from, .fade-leave-to {
-    opacity: 0;
+    &:focus {
+        border-color: #69628a;
+        background: rgba(255, 255, 255, 0.1);
+    }
 }
 </style>

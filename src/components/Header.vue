@@ -96,8 +96,10 @@ const breadcrumbs = computed(() => {
     let currentUrl = '';
     for (let i = 0; i < parts.length; i++) {
         currentUrl += '/' + parts[i];
+        let name = decodeURIComponent(parts[i].replace(/%20/g, ' '));
+        if (name.toLowerCase() === 'private') name = 'My Files';
         crumbs.push({
-            name: decodeURIComponent(parts[i].replace(/%20/g, ' ')),
+            name: name,
             url: currentUrl
         });
     }

@@ -5,12 +5,17 @@
         <div id="fileManager">
             <div id="system">
                 <ul id="file-list" v-if="dynamicfilelist.length > 0">
-                    <li v-for="(item, index) in dynamicfilelist" :key="item.path" :data-type="item.type"
+                    <li v-for="(item, index) in dynamicfilelist" :key="item.path + item.name" :data-type="item.type"
                         :data-path="item.path">
                         <input type="checkbox" name="select-file" v-if="role === 'admin'" />
                         <span class="file-name" @click="() => handleItemClick(item)">
-                            <img :src="item.type === 'folder' ? FolderIcon : FileIcon" alt="" srcset="" />
-                            <p>{{ item.name }}</p>
+                            <img :src="getIcon(item)" alt="" srcset="" />
+                            <div class="name-container">
+                                <p>{{ item.name }}</p>
+                                <small v-if="route.name === 'fileFilter' && (item as any).locationName" class="location-tag">
+                                    {{ (item as any).locationName }}
+                                </small>
+                            </div>
                         </span>
                         <div class="fileaction">
                             <img v-if="item.type === 'file'" title="download" :src="DownloadIcon" alt="" srcset=""
@@ -45,6 +50,8 @@
 import Header from '../components/Header.vue'
 import FolderIcon from '../assets/apps/default/fileManager/assets/system-folder.png';
 import FileIcon from '../assets/apps/default/fileManager/assets/system-file.png';
+import ImageIcon from '../assets/apps/default/fileManager/assets/image.png';
+import VideoIcon from '../assets/apps/default/fileManager/assets/video.png';
 import DeleteIcon from '../assets/apps/default/fileManager/assets/delete.png';
 import RenameIcon from '../assets/apps/default/fileManager/assets/rename.png';
 import DownloadIcon from '../assets/apps/default/fileManager/assets/download.png';
@@ -53,6 +60,14 @@ import { useRoute, useRouter } from 'vue-router';
 import { ref, watch, onMounted, computed } from 'vue';
 import type { FileNode } from '../types';
 import { getUserHashSync } from '../scripts/auth';
+
+const getIcon = (item: FileNode) => {
+    if (item.type === 'folder') return FolderIcon;
+    const name = item.name.toLowerCase();
+    if (name.match(/\.(jpg|jpeg|png|gif|svg|webp)$/)) return ImageIcon;
+    if (name.match(/\.(mp4|webm|ogg|mov)$/)) return VideoIcon;
+    return FileIcon;
+};
 
 const props = defineProps<{
     filestructure: FileNode[];
@@ -85,6 +100,23 @@ const hasUserOwnedDescendant = (node: FileNode): boolean => {
     return false;
 };
 
+interface IndexedFile extends FileNode {
+    locationName?: string;
+}
+
+const flattenFiles = (nodes: FileNode[], parentPathName = ''): IndexedFile[] => {
+    let flat: IndexedFile[] = [];
+    for (const node of nodes) {
+        if (node.type === 'file') {
+            flat.push({ ...node, locationName: parentPathName || 'Root' });
+        }
+        if (node.files && node.files.length > 0) {
+            flat = flat.concat(flattenFiles(node.files, (parentPathName ? parentPathName + ' > ' : '') + node.name));
+        }
+    }
+    return flat;
+};
+
 
 function findFilesByPath(pathParts: string[], files: FileNode[]): FileNode[] | null {
     if (pathParts.length === 0) {
@@ -103,16 +135,30 @@ function findFilesByPath(pathParts: string[], files: FileNode[]): FileNode[] | n
 }
 
 function dynamicfilefunction() {
-    const pathParts = fullpath.value.split('/').splice(2).map((part: string) => decodeURIComponent(part.replace(/%20/g, ' ')));
     loading.value = true;
     
-    const files = findFilesByPath([...pathParts], props.filestructure);
-    
-    if (path.value === 'private') {
-        // Filter hierarchically: show folders that contain user's files + user's own items
-        dynamicfilelist.value = (files || []).filter(item => hasUserOwnedDescendant(item));
+    if (route.name === 'fileFilter') {
+        const type = route.params.type as string;
+        const allFiles = flattenFiles(props.filestructure);
+        
+        if (type === 'images') {
+            dynamicfilelist.value = allFiles.filter(f => /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(f.name));
+        } else if (type === 'videos') {
+            dynamicfilelist.value = allFiles.filter(f => /\.(mp4|webm|ogg|mov)$/i.test(f.name));
+        } else if (type === 'documents') {
+            dynamicfilelist.value = allFiles.filter(f => /\.(pdf|doc|docx|txt|md|js|ts|html|css|json)$/i.test(f.name));
+        } else {
+            dynamicfilelist.value = [];
+        }
     } else {
-        dynamicfilelist.value = files || [];
+        const pathParts = fullpath.value.split('/').splice(2).map((part: string) => decodeURIComponent(part.replace(/%20/g, ' ')));
+        const files = findFilesByPath([...pathParts], props.filestructure);
+        
+        if (path.value === 'private') {
+            dynamicfilelist.value = (files || []).filter(item => hasUserOwnedDescendant(item));
+        } else {
+            dynamicfilelist.value = files || [];
+        }
     }
     
     loading.value = false;

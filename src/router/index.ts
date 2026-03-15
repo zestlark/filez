@@ -15,6 +15,11 @@ const router = createRouter({
       component: HomeView
     },
     {
+      path: '/filter/:type',
+      name: 'fileFilter',
+      component: HomeView
+    },
+    {
       path: '/editor',
       name: 'Editor',
       component: EditorView

@@ -1,14 +1,18 @@
 <template>
-    <div class="box" id="addfolderform">
-        <div class="foldernameinput">
-            <input v-model="inputfoldername" type="text">
-            <small class="error">{{ errormsg }}</small>
-            <div class="btns">
-                <button @click="closefolderform">Cancel</button>
-                <button @click="checkfolderexist">Create</button>
-            </div>
+    <ModernModal 
+        :show="showFolderForm" 
+        :hasButtons="true"
+        confirmText="Create"
+        @close="closefolderform"
+        @confirm="checkfolderexist"
+    >
+        <div class="folder-input-form">
+            <h3 style="margin: 0; color: white;">New Folder</h3>
+            <p style="margin: 0 0 5px 0; color: rgba(255, 255, 255, 0.6); font-size: 0.85rem;">Enter folder name</p>
+            <input v-model="inputfoldername" type="text" placeholder="Folder Name" class="modern-input" @keyup.enter="checkfolderexist">
+            <small class="error" v-if="errormsg">{{ errormsg }}</small>
         </div>
-    </div>
+    </ModernModal>
 </template>
 
 <script setup lang="ts">
@@ -17,6 +21,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ref, onMounted } from 'vue';
 import type { FileNode } from '../types';
 import { getUserHashSync } from '../scripts/auth';
+import ModernModal from './ModernModal.vue';
 
 const emit = defineEmits(['folderCreated'])
 
@@ -37,12 +42,33 @@ const fetchData = async () => {
 }
 
 const errormsg = ref('')
+const showFolderForm = ref(false);
 
 const closefolderform = () => {
     inputfoldername.value = ''
-    const form = document.getElementById('addfolderform')
-    if (form) form.style.display = 'none'
+    errormsg.value = ''
+    showFolderForm.value = false;
 }
+
+onMounted(() => {
+    // We can't use document.getElementById since we are using ref now, 
+    // but the parent still tries to show it by setting style.display.
+    // Let's shim it or change the parent.
+    const form = document.getElementById('addfolderform');
+    if (form) {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                    if (form.style.display === 'flex') {
+                        showFolderForm.value = true;
+                        form.style.display = 'none'; // reset it
+                    }
+                }
+            });
+        });
+        observer.observe(form, { attributes: true });
+    }
+})
 
 const checkfolderexist = async () => {
     if (inputfoldername.value == '') {
@@ -68,7 +94,8 @@ const checkfolderexist = async () => {
                 return;
             }
             errormsg.value = ''
-            filelist.value.push({ name: inputfoldername.value, path: 'global', type: 'folder', ownerHash: userHash, files: [] })
+            const newFolderPath = route.params.data === 'global' ? `global/${inputfoldername.value}` : `private/${inputfoldername.value}`;
+            filelist.value.push({ name: inputfoldername.value, path: newFolderPath, type: 'folder', ownerHash: userHash, files: [] })
             await insertdatabasedata('/filez/global', filelist.value)
             emit('folderCreated');
             closefolderform()
@@ -102,7 +129,8 @@ const checkfolderexist = async () => {
              errormsg.value = '* Folder Already Exist'
         } else if (targetFolder.files) {
              errormsg.value = ''
-             targetFolder.files.push({ name: inputfoldername.value, path: 'global', type: 'folder', ownerHash: userHash, files: [] })
+             const newFolderPath = targetFolder.path.endsWith('/') ? `${targetFolder.path}${inputfoldername.value}` : `${targetFolder.path}/${inputfoldername.value}`;
+             targetFolder.files.push({ name: inputfoldername.value, path: newFolderPath, type: 'folder', ownerHash: userHash, files: [] })
              await insertdatabasedata('/filez/global', filelist.value)
              emit('folderCreated');
              closefolderform()
@@ -114,59 +142,32 @@ const checkfolderexist = async () => {
 
 
 <style lang="scss">
-.box {
-    background: rgba(0, 0, 0, 0.81);
-    backdrop-filter: blur(100px);
-    z-index: 9;
-    position: fixed;
-    width: 100vw;
-    height: 100vh;
-    top: 0;
+.folder-input-form {
     display: flex;
-    justify-content: center;
-    align-items: center;
-    display: none;
+    flex-direction: column;
+    gap: 10px;
+}
 
-    .foldernameinput {
-        background: rgb(33, 33, 33);
-        width: 300px;
-        padding: 10px;
+.error {
+    font-size: 11px;
+    color: #ff5555;
+    margin-top: -5px;
+}
 
-        .error {
-            font-size: 12px;
-            color: rgb(226, 0, 0);
-        }
+.modern-input {
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    color: white;
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.3s;
+    width: 100%;
 
-        input {
-            padding: 10px;
-            width: 100%;
-            border: 0;
-            background: rgba(78, 78, 78, 0.87);
-            color: white;
-            margin-bottom: 5px;
-        }
-
-        .btns {
-            display: flex;
-            justify-self: center;
-            align-items: center;
-            margin-top: 10px;
-            gap: 5px;
-
-            button:first-child {
-                background: transparent;
-                border: 1px solid rgba(255, 255, 255, 0.429);
-                color: rgba(255, 255, 255, 0.668);
-            }
-
-            button {
-                background: #69628a;
-                width: 100%;
-                padding: 10px;
-                border: 1px solid #69628a;
-                color: rgba(255, 255, 255, 0.668);
-            }
-        }
+    &:focus {
+        border-color: #69628a;
+        background: rgba(255, 255, 255, 0.1);
     }
 }
 </style>
