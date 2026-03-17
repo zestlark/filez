@@ -159,9 +159,9 @@ const showAdminModal = ref(false);
 const adminPasskey = ref('');
 
 const handleAdminLogin = () => {
-    console.log('Validating admin passkey...');
+
     if (adminPasskey.value.trim() === 'zestlark') {
-        console.log('Authentication SUCCESS');
+
         emit('updaterole', 'admin');
         sessionStorage.setItem('admin', 'true');
         showAdminModal.value = false;
@@ -171,7 +171,7 @@ const handleAdminLogin = () => {
             notify.success('Welcome Admin!', 'Filez', '/favicon.ico');
         }
     } else {
-        console.log('Authentication FAILED');
+
         const notify = (window as any).notification;
         if (notify) {
             notify.danger('Incorrect Passkey', 'Access Denied', '/favicon.ico');
@@ -180,7 +180,7 @@ const handleAdminLogin = () => {
 }
 
 const adminlogout = () => {
-    console.log('Admin logout requested.');
+
     sessionStorage.removeItem('admin');
     emit('updaterole', 'user');
     const notify = (window as any).notification;

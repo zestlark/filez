@@ -18,14 +18,14 @@ async function getdatabasedata(path: string) {
 
         if (error) {
             if (error.code === 'PGRST116') { // Record not found
-                console.log("No data available for:", cleanPath);
+
                 return [];
             }
             throw error;
         }
         return data.contents || [];
     } catch (error) {
-        console.error("Error getting data from Supabase:", error);
+
         return [];
     }
 }
@@ -39,9 +39,7 @@ async function insertdatabasedata(path: string, newData: FileNode[]) {
             .upsert({ id: cleanPath, contents: newData })
 
         if (error) throw error;
-        console.log("Data upserted successfully to Supabase!");
     } catch (error) {
-        console.error("Error inserting data into Supabase:", error);
         throw error;
     }
 }
@@ -56,7 +54,7 @@ async function fetchFileContent(url: string) {
         if (!response.ok) throw new Error("Failed to fetch file content");
         return await response.text();
     } catch (error) {
-        console.error('Error fetching file content:', error);
+
         return 'Could not load file content...';
     }
 }
@@ -78,9 +76,8 @@ async function deleteFileByUrl(fileUrl: string) {
             .remove([filePath]);
 
         if (error) throw error;
-        console.log(`File at "${filePath}" deleted successfully from Supabase Storage.`);
     } catch (error) {
-        console.error('Error deleting file from Supabase:', error);
+        // error handled silently
     }
 }
 

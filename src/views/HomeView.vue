@@ -14,7 +14,7 @@ const handleFolderCreated = async () => {
 
 const role = ref('user')
 const updateRole = (value: string) => {
-  console.log('Role updating to:', value);
+
   role.value = value
 }
 

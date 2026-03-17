@@ -197,7 +197,7 @@ const uploadImageAsPromise = async (imageFile: File) => {
             });
 
         if (error) {
-            console.error('Error uploading to Supabase:', error);
+
             const notify = (window as any).notification;
             if (notify) {
                 notify.danger('Upload Failed', 'Filez', '/favicon.ico');
@@ -215,7 +215,7 @@ const uploadImageAsPromise = async (imageFile: File) => {
             type: 'file', 
             ownerHash: userHash 
         };
-        console.log('Adding new file to DB with ownerHash:', newfile.ownerHash);
+
         
         await addfiletodatabase(newfile);
         uploadProgress.value = 0;
@@ -225,7 +225,7 @@ const uploadImageAsPromise = async (imageFile: File) => {
         }
 
     } catch (error) {
-        console.error("Error uploading file:", error);
+
     }
 }
 
@@ -248,7 +248,7 @@ const addfiletodatabase = async (data: FileNode) => {
                     }
                     currentLevel = targetFolder.files;
                 } else {
-                    console.error('Folder not found when adding file to db:', folderName);
+
                     return;
                 }
             }
@@ -259,15 +259,14 @@ const addfiletodatabase = async (data: FileNode) => {
 
         await insertdatabasedata('/filez/global', file);
     } catch (error) {
-        console.error("Error adding file to database:", error);
+
     }
 }
 
 
 
 const openfolderform = () => {
-    const folderForm = document.getElementById('addfolderform');
-    if (folderForm) folderForm.style.display = 'flex';
+    window.dispatchEvent(new CustomEvent('open-folder-modal'));
 }
 
 // actions
@@ -290,7 +289,7 @@ const multiRename = () => {
             if (renameBtn) renameBtn.click();
         }
     })
-    console.log(multilist);
+
 }
 
 const multiDelete = () => {
@@ -318,7 +317,7 @@ const multiDelete = () => {
                 if (deleteBtn) deleteBtn.click();
             }
         })
-        console.log(multilist);
+
         sessionStorage.removeItem('multidelete')
     }
 }

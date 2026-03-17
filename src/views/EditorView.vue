@@ -105,7 +105,7 @@ const uploadImageAsPromise = async (imageFile: File) => {
             });
 
         if (error) {
-            console.error('Error uploading to Supabase:', error);
+
             loader.value = false;
             return;
         }
@@ -122,7 +122,7 @@ const uploadImageAsPromise = async (imageFile: File) => {
         }
         await addfiletodatabase(newfile);
     } catch (error) {
-        console.error("Error uploading file:", error);
+
         loader.value = false;
     }
 }
@@ -147,7 +147,7 @@ const addfiletodatabase = async (data: FileNode) => {
                     }
                     currentLevel = targetFolder.files;
                 } else {
-                    console.error('Folder not found when adding file to db:', folderName);
+
                     loader.value = false;
                     return;
                 }
@@ -163,7 +163,7 @@ const addfiletodatabase = async (data: FileNode) => {
 
     } catch (error) {
         loader.value = false
-        console.error("Error adding file to database:", error);
+
     }
 }
 

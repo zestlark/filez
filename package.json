@@ -8,7 +8,8 @@
     "tsc": "vue-tsc --noEmit",
     "dev": "vite",
     "format": "prettier --write src/",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "npm run build && firebase deploy"
   },
   "dependencies": {
     "@codemirror/lang-html": "^6.4.9",
@@ -35,6 +36,7 @@
     "@vue/eslint-config-prettier": "^8.0.0",
     "eslint": "^8.49.0",
     "eslint-plugin-vue": "^9.17.0",
+    "firebase-tools": "^15.10.0",
     "prettier": "^3.0.3",
     "typescript": "^5.9.3",
     "vite": "^5.1.6",

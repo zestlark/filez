@@ -82,7 +82,7 @@ const userHash = getUserHashSync();
 const isAdmin = computed(() => props.role === 'admin');
 
 const canModify = (item: FileNode) => {
-    console.log(`Checking permissions for ${item.name}: itemHash=${item.ownerHash}, userHash=${userHash}, isAdmin=${isAdmin.value}`);
+
     if (isAdmin.value) return true;
     return item.ownerHash === userHash;
 };
@@ -195,7 +195,7 @@ const downloadFile = async (item: FileNode) => {
             const response = await fetch(item.path);
             if (!response.ok) throw new Error("Network response was not ok");
             const blob = await response.blob();
-            console.log('Downloaded blob size:', blob.size);
+
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -205,7 +205,7 @@ const downloadFile = async (item: FileNode) => {
             document.body.removeChild(a); // Remove the anchor from the body
             window.URL.revokeObjectURL(url); // Clean up the URL object
         } catch (error) {
-            console.error('Error downloading the file:', error);
+
         }
     }
 };
@@ -244,7 +244,7 @@ const renameFile = async (index: number, item: FileNode) => {
                 notify.success('Item renamed successfully', 'Filez', '/favicon.ico');
             }
         } else {
-            console.error('Failed to find item in structure for renaming');
+
         }
     }
 };
@@ -261,7 +261,7 @@ const deleteFile = async (index: number, item: FileNode) => {
     if (item.type === 'folder') {
         if (item.files && item.files.length > 0) {
             alert('Sorry we cannot delete this folder because there are files available in this folder')
-            console.log(item);
+
             return
         }
     }
@@ -301,7 +301,7 @@ const deleteFile = async (index: number, item: FileNode) => {
             emit('dataChanged');
             notification.success('Item Deleted successfully', 'Filez', '/favicon.ico')
         } else {
-            console.error('Failed to find item in structure for deletion');
+
             notification.danger('Could not find item to delete', 'Error', '/favicon.ico')
         }
     }

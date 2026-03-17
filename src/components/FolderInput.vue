@@ -18,7 +18,7 @@
 <script setup lang="ts">
 import { getdatabasedata, insertdatabasedata } from '../scripts/storage'
 import { useRouter, useRoute } from 'vue-router'
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import type { FileNode } from '../types';
 import { getUserHashSync } from '../scripts/auth';
 import ModernModal from './ModernModal.vue';
@@ -50,24 +50,16 @@ const closefolderform = () => {
     showFolderForm.value = false;
 }
 
+const handleOpenModal = () => {
+    showFolderForm.value = true;
+};
+
 onMounted(() => {
-    // We can't use document.getElementById since we are using ref now, 
-    // but the parent still tries to show it by setting style.display.
-    // Let's shim it or change the parent.
-    const form = document.getElementById('addfolderform');
-    if (form) {
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-                    if (form.style.display === 'flex') {
-                        showFolderForm.value = true;
-                        form.style.display = 'none'; // reset it
-                    }
-                }
-            });
-        });
-        observer.observe(form, { attributes: true });
-    }
+    window.addEventListener('open-folder-modal', handleOpenModal);
+})
+
+onUnmounted(() => {
+    window.removeEventListener('open-folder-modal', handleOpenModal);
 })
 
 const checkfolderexist = async () => {
@@ -116,7 +108,7 @@ const checkfolderexist = async () => {
             }
             currentLevel = targetFolder.files;
         } else {
-            console.error('Target folder not found in structure:', folderName);
+
             break;
         }
     }
