@@ -146,7 +146,7 @@ function dynamicfilefunction() {
         } else if (type === 'videos') {
             dynamicfilelist.value = allFiles.filter(f => /\.(mp4|webm|ogg|mov)$/i.test(f.name));
         } else if (type === 'documents') {
-            dynamicfilelist.value = allFiles.filter(f => /\.(pdf|doc|docx|txt|md|js|ts|html|css|json)$/i.test(f.name));
+            dynamicfilelist.value = allFiles.filter(f => !/\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|ogg|mov)$/i.test(f.name) && f.type !== 'folder');
         } else {
             dynamicfilelist.value = [];
         }
