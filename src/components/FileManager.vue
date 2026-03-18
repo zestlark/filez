@@ -43,11 +43,48 @@
                 </ul>
             </div>
         </div>
+
+        <ModernModal 
+            :show="showDeleteModal" 
+            :hasButtons="true"
+            confirmText="Delete"
+            @close="showDeleteModal = false"
+            @confirm="confirmDeleteAction"
+        >
+            <div style="text-align: center;">
+                <h3 style="margin: 0; color: white;">Confirm Delete</h3>
+                <p style="margin: 10px 0 0 0; color: rgba(255, 255, 255, 0.7); font-size: 0.95rem;">
+                    Are you sure you want to delete "{{ itemToDelete?.item.name }}"? This action cannot be undone.
+                </p>
+            </div>
+        </ModernModal>
+
+        <ModernModal 
+            :show="showRenameModal" 
+            :hasButtons="true"
+            confirmText="Rename"
+            @close="showRenameModal = false"
+            @confirm="confirmRenameAction"
+        >
+            <div style="text-align: center;">
+                <h3 style="margin: 0; color: white; margin-bottom: 20px;">Rename File</h3>
+                <input 
+                    v-model="newRenameValue" 
+                    type="text" 
+                    placeholder="Enter new name" 
+                    @keyup.enter="confirmRenameAction"
+                    class="modern-input"
+                    autofocus
+                >
+            </div>
+        </ModernModal>
+
     </div>
 </template>
 
 <script setup lang="ts">
 import Header from '../components/Header.vue'
+import ModernModal from './ModernModal.vue'
 import FolderIcon from '../assets/apps/default/fileManager/assets/system-folder.png';
 import FileIcon from '../assets/apps/default/fileManager/assets/system-file.png';
 import ImageIcon from '../assets/apps/default/fileManager/assets/image.png';
@@ -210,6 +247,10 @@ const downloadFile = async (item: FileNode) => {
     }
 };
 
+const showRenameModal = ref(false);
+const itemToRename = ref<{ index: number, item: FileNode } | null>(null);
+const newRenameValue = ref('');
+
 const renameFile = async (index: number, item: FileNode) => {
     if (!canModify(item)) {
         const notify = (window as any).notification;
@@ -219,8 +260,19 @@ const renameFile = async (index: number, item: FileNode) => {
         return;
     }
 
-    const newName = prompt('Enter new name:', item.name);
-    if (newName && newName !== item.name) {
+    itemToRename.value = { index, item };
+    newRenameValue.value = item.name;
+    showRenameModal.value = true;
+};
+
+const confirmRenameAction = async () => {
+    if (!itemToRename.value || !newRenameValue.value) {
+        showRenameModal.value = false;
+        return;
+    }
+
+    const { item } = itemToRename.value;
+    if (newRenameValue.value && newRenameValue.value !== item.name) {
         const updatedFileStructure = JSON.parse(JSON.stringify(props.filestructure));
         
         // Helper to find and rename in clone
@@ -228,7 +280,7 @@ const renameFile = async (index: number, item: FileNode) => {
             for (let i = 0; i < nodes.length; i++) {
                 const node = nodes[i];
                 if (node.name === item.name && node.type === item.type && node.ownerHash === item.ownerHash && node.path === item.path) {
-                    node.name = newName;
+                    node.name = newRenameValue.value;
                     return true;
                 }
                 if (node.files && findAndRename(node.files)) return true;
@@ -244,11 +296,62 @@ const renameFile = async (index: number, item: FileNode) => {
                 notify.success('Item renamed successfully', 'Filez', '/favicon.ico');
             }
         } else {
+            const notify = (window as any).notification;
+            if (notify) {
+                notify.danger('Could not find item to rename', 'Error', '/favicon.ico');
+            }
+        }
+    }
+    showRenameModal.value = false;
+    itemToRename.value = null;
+    newRenameValue.value = '';
+};
 
+
+const showDeleteModal = ref(false);
+const itemToDelete = ref<{ index: number, item: FileNode } | null>(null);
+
+const executeDelete = async (index: number, item: FileNode) => {
+    if (item.type !== 'folder') {
+        await deleteFileByUrl(item.path)
+    }
+
+    const updatedFileStructure = JSON.parse(JSON.stringify(props.filestructure));
+    
+    const findAndRemove = (nodes: FileNode[]): boolean => {
+        for (let i = 0; i < nodes.length; i++) {
+            const node = nodes[i];
+            if (node.name === item.name && node.type === item.type && node.ownerHash === item.ownerHash && node.path === item.path) {
+                nodes.splice(i, 1);
+                return true;
+            }
+            if (node.files && findAndRemove(node.files)) return true;
+        }
+        return false;
+    };
+
+    if (findAndRemove(updatedFileStructure)) {
+        await insertdatabasedata('/filez/global', updatedFileStructure);
+        emit('dataChanged');
+        const notify = (window as any).notification;
+        if (notify) {
+            notify.success('Item Deleted successfully', 'Filez', '/favicon.ico');
+        }
+    } else {
+        const notify = (window as any).notification;
+        if (notify) {
+            notify.danger('Could not find item to delete', 'Error', '/favicon.ico');
         }
     }
 };
 
+const confirmDeleteAction = async () => {
+    if (itemToDelete.value) {
+        await executeDelete(itemToDelete.value.index, itemToDelete.value.item);
+    }
+    showDeleteModal.value = false;
+    itemToDelete.value = null;
+};
 
 const deleteFile = async (index: number, item: FileNode) => {
     if (!canModify(item)) {
@@ -260,56 +363,41 @@ const deleteFile = async (index: number, item: FileNode) => {
     }
     if (item.type === 'folder') {
         if (item.files && item.files.length > 0) {
-            alert('Sorry we cannot delete this folder because there are files available in this folder')
-
+            const notify = (window as any).notification;
+            if (notify) notify.warning('Cannot delete folder because there are files available in it.', 'Error', '/favicon.ico');
             return
         }
     }
 
-
-    let confirmDelete = false
-
     const sessionmultidelete = sessionStorage.getItem('multidelete')
     if (sessionmultidelete !== 'true') {
-        confirmDelete = confirm(`Do you want to delete this file: "${dynamicfilelist.value[index].name}"?`);
+        itemToDelete.value = { index, item };
+        showDeleteModal.value = true;
     } else {
-        confirmDelete = true
-    }
-
-    if (confirmDelete || sessionmultidelete == 'true') {
-        if (item.type !== 'folder') {
-            await deleteFileByUrl(item.path)
-        }
-
-        const updatedFileStructure = JSON.parse(JSON.stringify(props.filestructure));
-        
-        // Helper to find and remove in clone
-        const findAndRemove = (nodes: FileNode[]): boolean => {
-            for (let i = 0; i < nodes.length; i++) {
-                const node = nodes[i];
-                if (node.name === item.name && node.type === item.type && node.ownerHash === item.ownerHash && node.path === item.path) {
-                    nodes.splice(i, 1);
-                    return true;
-                }
-                if (node.files && findAndRemove(node.files)) return true;
-            }
-            return false;
-        };
-
-        if (findAndRemove(updatedFileStructure)) {
-            await insertdatabasedata('/filez/global', updatedFileStructure);
-            emit('dataChanged');
-            notification.success('Item Deleted successfully', 'Filez', '/favicon.ico')
-        } else {
-
-            notification.danger('Could not find item to delete', 'Error', '/favicon.ico')
-        }
+        await executeDelete(index, item);
     }
 };
 
 </script>
 
 <style scoped lang="scss">
+.modern-input {
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    color: white;
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.3s;
+    width: 100%;
+
+    &:focus {
+        border-color: #69628a;
+        background: rgba(255, 255, 255, 0.1);
+    }
+}
+
 .filemanager-box {
     width: 100%;
 }

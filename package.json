@@ -19,6 +19,7 @@
     "@codemirror/theme-one-dark": "^6.1.2",
     "@supabase/supabase-js": "^2.99.1",
     "codemirror": "^6.0.1",
+    "firebase": "^12.10.0",
     "pinia": "^2.1.7",
     "register-service-worker": "^1.7.2",
     "sass": "^1.72.0",

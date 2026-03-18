@@ -9,6 +9,10 @@
 
         <!-- actions -->
         <div id="actions">
+            <!-- Chat Icon for Mobile and Tablets -->
+            <div @click="toggleChat" id="openChat" class="action mobile-chat-toggle">
+                <i class="ri-chat-3-line" style="font-size: 1.2rem; color: #69628a;"></i>
+            </div>
             <div @click="openfolderform" id="createFolder" class="action" :style="{
                 opacity: canCreateInFolder ? '100%' : '50%',
                 pointerEvents: canCreateInFolder ? 'auto' : 'none'
@@ -40,6 +44,21 @@
                 <img src="../assets/apps/default/fileManager/assets/delete.png" alt="" srcset="" />
             </div>
         </div>
+
+        <ModernModal 
+            :show="showMultiDeleteModal" 
+            :hasButtons="true"
+            confirmText="Delete All"
+            @close="showMultiDeleteModal = false"
+            @confirm="confirmMultiDeleteAction"
+        >
+            <div style="text-align: center;">
+                <h3 style="margin: 0; color: white;">Confirm Multiple Deletion</h3>
+                <p style="margin: 10px 0 0 0; color: rgba(255, 255, 255, 0.7); font-size: 0.95rem;">
+                    Are you sure you want to delete these {{ multiDeleteList.length }} selected files? This action cannot be undone.
+                </p>
+            </div>
+        </ModernModal>
 
         <!-- header paths -->
         <div id="navigator">
@@ -76,6 +95,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { ref, watch, onMounted, computed } from 'vue';
 import type { FileNode } from '../types';
 import { getUserHashSync } from '../scripts/auth';
+import ModernModal from './ModernModal.vue';
 
 const props = defineProps({
     filestructure: {
@@ -269,6 +289,10 @@ const openfolderform = () => {
     window.dispatchEvent(new CustomEvent('open-folder-modal'));
 }
 
+const toggleChat = () => {
+    window.dispatchEvent(new CustomEvent('toggle-chat'));
+}
+
 // actions
 const multiRename = () => {
     const multilist: HTMLLIElement[] = []
@@ -292,8 +316,11 @@ const multiRename = () => {
 
 }
 
+const showMultiDeleteModal = ref(false);
+const multiDeleteList = ref<HTMLLIElement[]>([]);
+
 const multiDelete = () => {
-    const multilist: HTMLLIElement[] = []
+    multiDeleteList.value = [];
     const fileList = document.querySelector('#file-list')
     if (!fileList) return;
 
@@ -301,25 +328,31 @@ const multiDelete = () => {
     list.forEach(li => {
         let inputCheck = li.querySelector('input') as HTMLInputElement | null;
         if (inputCheck && inputCheck.checked) {
-            multilist.push(li)
+            multiDeleteList.value.push(li)
         }
     })
 
-    if (confirm("Are you sure you want to delete this files")) {
-        sessionStorage.setItem('multidelete', 'true')
-        multilist.forEach(li => {
-            const inputCheck = li.querySelector('input') as HTMLInputElement | null;
-            if (inputCheck) inputCheck.checked = false;
-            
-            const actionDiv = li.querySelector('.fileaction');
-            if (actionDiv) {
-                const deleteBtn = actionDiv.querySelector('.delete-btn') as HTMLElement | null;
-                if (deleteBtn) deleteBtn.click();
-            }
-        })
+    if (multiDeleteList.value.length === 0) return;
+    
+    showMultiDeleteModal.value = true;
+}
 
-        sessionStorage.removeItem('multidelete')
-    }
+const confirmMultiDeleteAction = () => {
+    showMultiDeleteModal.value = false;
+    sessionStorage.setItem('multidelete', 'true')
+    multiDeleteList.value.forEach(li => {
+        const inputCheck = li.querySelector('input') as HTMLInputElement | null;
+        if (inputCheck) inputCheck.checked = false;
+        
+        const actionDiv = li.querySelector('.fileaction');
+        if (actionDiv) {
+            const deleteBtn = actionDiv.querySelector('.delete-btn') as HTMLElement | null;
+            if (deleteBtn) deleteBtn.click();
+        }
+    })
+
+    sessionStorage.removeItem('multidelete')
+    multiDeleteList.value = [];
 }
 
 
@@ -363,5 +396,11 @@ onMounted(() => {
     background-image: linear-gradient(315deg, #f8ceec 0%, #a88beb 74%);
     border-radius: 10px;
     transition: 0.5s all;
+}
+
+@media screen and (min-width: 1025px) {
+    .mobile-chat-toggle {
+        display: none !important;
+    }
 }
 </style>
